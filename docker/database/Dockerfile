@@ -1,0 +1,3 @@
+FROM postgres
+ENV POSTGRES_PASSWORD scarletpimpernil
+ENV POSTGRES_USER blakeney
