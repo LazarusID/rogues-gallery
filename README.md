@@ -14,7 +14,7 @@ To create the base image:
 
 To run the database:
 
-    docker run -d -p 5432:5432 roguedb:v1
+    docker run -d -p 5432:5432 --name rogue-postgres roguedb:v1
 
 The database can be accessed via any PostgreSQL client on localhost at
 port 5432 (the standard port).  Username is *blakeney* and password is
