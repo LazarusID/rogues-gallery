@@ -1,5 +1,5 @@
 
-create table user (
+create table appuser (
     id serial primary key,
     email varchar(60) not null unique,
     name varchar(60) not null default 'User'
@@ -7,7 +7,7 @@ create table user (
 
 create table campaign (
     id serial primary key,
-    user_id integer not null REFERENCES user (id),
+    user_id integer not null REFERENCES appuser (id),
     name varchar(60) not null,
     active boolean not null default true
 );
