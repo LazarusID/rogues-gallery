@@ -56,4 +56,29 @@ public class UserController {
         return repository.save(newuser);
     }
 
+    @PutMapping(value = "/{id}", produces = "application/json")
+    public UserEntity updateUser(@PathVariable Integer id, @RequestBody AppUser user) {
+        var target = repository.findById(id);
+
+        if (target.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+
+        var entity = target.get();
+        entity.setEmail(user.getEmail());
+        entity.setName(user.getName());
+
+        return repository.save(entity);
+    }
+
+    @DeleteMapping(value = "/{id}", produces = "text/plain")
+    public String deleteUser(@PathVariable Integer id) {
+        var entity = repository.findById(id);
+
+        if (entity.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        repository.delete(entity.get());
+
+        return "Deleted";
+    }
+
 }
