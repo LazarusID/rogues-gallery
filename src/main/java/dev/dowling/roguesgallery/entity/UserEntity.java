@@ -48,5 +48,13 @@ public class UserEntity {
         this.name = name;
     }
 
+    public Set<CampaignEntity> getCampaigns() {
+        return campaigns;
+    }
+
+    public void setCampaigns(Set<CampaignEntity> campaigns) {
+        this.campaigns = campaigns;
+    }
+
 
 }

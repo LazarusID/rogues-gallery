@@ -1,6 +1,7 @@
 package dev.dowling.roguesgallery.controller;
 
 import dev.dowling.roguesgallery.domain.AppUser;
+import dev.dowling.roguesgallery.domain.Campaign;
 import dev.dowling.roguesgallery.entity.UserEntity;
 import dev.dowling.roguesgallery.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -9,12 +10,13 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("user")
 public class UserController {
 
-    private UserRepository repository;
+    private final UserRepository repository;
 
     public UserController(UserRepository userRepository) {
         repository = userRepository;
@@ -27,9 +29,9 @@ public class UserController {
 
         userEntities.forEach(ue -> {
             result.add(AppUser.builder()
-                            .id(ue.getId())
-                            .name(ue.getName())
-                            .email(ue.getEmail())
+                    .id(ue.getId())
+                    .name(ue.getName())
+                    .email(ue.getEmail())
                     .build());
         });
 
@@ -80,5 +82,34 @@ public class UserController {
 
         return "Deleted";
     }
+
+    @GetMapping(value = "/{id}/campaign/", produces = "application/json")
+    public AppUser getCampaigns(@PathVariable Integer id) {
+        var userentity = repository.findById(id);
+
+        if (userentity.isEmpty())
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+
+        var e = userentity.get();
+
+        List<Campaign> campaigns = e.getCampaigns().stream()
+                .map(c -> {
+                    return Campaign.builder()
+                            .id(c.getId())
+                            .name(c.getName())
+                            .active(c.getActive())
+                            .userId(c.getUserId())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return AppUser.builder()
+                .id(e.getId())
+                .name(e.getName())
+                .email(e.getEmail())
+                .campaigns(campaigns)
+                .build();
+    }
+
 
 }
