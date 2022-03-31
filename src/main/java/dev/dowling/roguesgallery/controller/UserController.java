@@ -1,9 +1,13 @@
 package dev.dowling.roguesgallery.controller;
 
+import dev.dowling.roguesgallery.action.GetAppUser;
 import dev.dowling.roguesgallery.domain.AppUser;
 import dev.dowling.roguesgallery.domain.Campaign;
+import dev.dowling.roguesgallery.entity.CampaignEntity;
 import dev.dowling.roguesgallery.entity.UserEntity;
+import dev.dowling.roguesgallery.repository.CampaignRepository;
 import dev.dowling.roguesgallery.repository.UserRepository;
+import dev.dowling.roguesgallery.requestobject.CampaignRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,9 +21,12 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserRepository repository;
+    private final CampaignRepository campaignRepository;
 
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, CampaignRepository campaignRepository)
+    {
         repository = userRepository;
+        this.campaignRepository = campaignRepository;
     }
 
     @GetMapping(value = "/", produces = "application/json")
@@ -39,17 +46,12 @@ public class UserController {
     }
 
     @GetMapping(value = "/{id}", produces = "application/json")
-    public AppUser getUser(@PathVariable Integer id) {
-        var entity = repository.findById(id);
-
-        if (entity.isEmpty()) {
+    public AppUser getUser(@PathVariable Integer id) throws Exception {
+        var user = new GetAppUser(id, repository::findById).call();
+        if (user == AppUser.emptyUser) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
-
-        var e = entity.get();
-        return AppUser.builder()
-                .id(e.getId())
-                .build();
+        return user;
     }
 
     @PostMapping("/")
@@ -84,32 +86,26 @@ public class UserController {
     }
 
     @GetMapping(value = "/{id}/campaign/", produces = "application/json")
-    public AppUser getCampaigns(@PathVariable Integer id) {
-        var userentity = repository.findById(id);
-
-        if (userentity.isEmpty())
+    public AppUser getCampaigns(@PathVariable Integer id) throws Exception {
+        var user = new GetAppUser(id, repository::findById).withCampaigns().call();
+        if (AppUser.emptyUser == user) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-
-        var e = userentity.get();
-
-        List<Campaign> campaigns = e.getCampaigns().stream()
-                .map(c -> {
-                    return Campaign.builder()
-                            .id(c.getId())
-                            .name(c.getName())
-                            .active(c.getActive())
-                            .userId(c.getUserId())
-                            .build();
-                })
-                .collect(Collectors.toList());
-
-        return AppUser.builder()
-                .id(e.getId())
-                .name(e.getName())
-                .email(e.getEmail())
-                .campaigns(campaigns)
-                .build();
+        }
+        return user;
     }
 
+    @PostMapping(value = "/{id}/campaign/", produces = "application/json")
+    public CampaignEntity createCampaign(@PathVariable Integer id, @RequestBody CampaignRequest campaign) throws Exception {
+        var user = new GetAppUser(id, repository::findById).call();
+
+        if (AppUser.emptyUser == user) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+
+        CampaignEntity ce = new CampaignEntity(id, campaign.getName(), campaign.isActive());
+        campaignRepository.save(ce);
+
+        return ce;
+    }
 
 }
