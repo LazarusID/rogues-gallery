@@ -8,8 +8,9 @@ import (
 	"log"
 	"math/rand"
 	"strings"
+	"time"
 
-	_ "github.com/jackc/pgx/v4"
+	_ "github.com/lib/pq"
 )
 
 //go:embed resources/prenom.txt
@@ -33,32 +34,33 @@ var surnom []string
 
 func addUser() {
 	name := makeName()
-	email := strings.Replace(name, " ", "_", 2) + "@mailinator.org"
-	res, err := userStmt.Exec(name, email)
+	var userId int64
+
+	digits := rand.Intn(9999)
+
+	email := fmt.Sprintf("%s%d@mailinator.org", strings.Replace(name, " ", "_", 2), digits)
+	rows, err := userStmt.Query(name, email)
 	if err != nil {
 		log.Fatalf("user insert: %v", err)
 	}
-	userid, err := res.LastInsertId()
-	if err != nil {
-		log.Fatalf("retrieving user id: %v", err)
-	}
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&userId)
 
-	addCampaign(userid)
-
-	log.Printf("created %s", name)
+	addCampaign(userId)
 }
 
 func addCampaign(userId int64) {
 	goal := rand.Intn(campaignsPerUser) + 1
+	var campaignId int64
 	for i := 0; i < goal; i++ {
-		res, err := campaignStmt.Exec(userId, makeCampaignName())
+		rows, err := campaignStmt.Query(userId, makeCampaignName())
 		if err != nil {
 			log.Fatalf("campaign insert: %v", err)
 		}
-		campaignId, err := res.LastInsertId()
-		if err != nil {
-			log.Fatalf("retrieving campaign id: %v", err)
-		}
+		defer rows.Close()
+		rows.Next()
+		rows.Scan(&campaignId)
 		addGallery(campaignId)
 	}
 }
@@ -87,19 +89,21 @@ func main() {
 	fmt.Printf("Creating %d users, 1-%d campaigns per user, 1-%d galleries per campaign\n",
 		userGoal, campaignsPerUser, galleriesPerCampaign)
 
-	db, err := sql.Open("pgx", "postgres://blakeney:scarletpimpernil@localhost/blakeney?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://blakeney:scarletpimpernil@localhost/blakeney?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	userStmt, err = db.Prepare("INSERT INTO appuser (name, email) VALUES ($1, $2);")
+	rand.Seed(time.Now().UnixMilli())
+
+	userStmt, err = db.Prepare("INSERT INTO appuser (name, email) VALUES ($1, $2) RETURNING id;")
 	if err != nil {
 		log.Fatalf("user statement: %v", err)
 	}
 	defer userStmt.Close()
 
-	campaignStmt, err = db.Prepare("INSERT INTO campaign (user_id, name, active) VALUES ($1, $2, true);")
+	campaignStmt, err = db.Prepare("INSERT INTO campaign (user_id, name, active) VALUES ($1, $2, true) RETURNING id;")
 	if err != nil {
 		log.Fatalf("campaign statement: %v", err)
 	}
@@ -115,6 +119,9 @@ func main() {
 
 	for i := 0; i < userGoal; i++ {
 		addUser()
+		if ((i + 1) % 100) == 0 {
+			log.Printf("%d users", i+1)
+		}
 	}
 
 }
